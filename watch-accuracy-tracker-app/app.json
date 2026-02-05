@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "watch-accuracy-tracker-app",
-    "slug": "watch-accuracy-tracker-app",
+    "slug": "watch-accuracy-tracker",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -38,11 +38,19 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "expo-sqlite"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "d698356c-0a90-41d0-a4e0-d7f653437fcd"
+      }
+    },
+    "owner": "smitan"
   }
 }
