@@ -19,11 +19,14 @@ const MAPPING = {
   'chevron.left.forwardslash.chevron.right': 'code',
   'chevron.right': 'chevron-right',
   'chevron.down': 'keyboard-arrow-down',
+  'chevron.up': 'keyboard-arrow-up',
   'clock': 'schedule',
   'clock.fill': 'schedule',
   'plus': 'add',
   'wifi': 'wifi',
   'gearshape.fill': 'settings',
+  'checkmark.square': 'check-box',
+  'square': 'check-box-outline-blank',
 } as IconMapping;
 
 /**

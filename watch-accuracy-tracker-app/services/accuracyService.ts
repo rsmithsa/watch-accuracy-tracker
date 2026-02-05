@@ -2,6 +2,41 @@ import { Measurement, AccuracyStats } from '@/types/database';
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
+/**
+ * Find the applicable baseline for a measurement.
+ * The baseline is the most recent measurement marked as isBaseline=true
+ * that occurred before (or at the same time as) this measurement.
+ */
+function findApplicableBaseline(measurement: Measurement, allMeasurements: Measurement[]): Measurement | null {
+  const baselines = allMeasurements
+    .filter(m => m.isBaseline && m.deviceTime <= measurement.deviceTime)
+    .sort((a, b) => b.deviceTime - a.deviceTime);
+
+  return baselines[0] || null;
+}
+
+/**
+ * Calculate drift from baseline for a single measurement.
+ * Returns drift in seconds per day, or null if no baseline applies.
+ */
+export function calculateDriftFromBaseline(
+  measurement: Measurement,
+  baseline: Measurement
+): { driftMs: number; elapsedMs: number; secondsPerDay: number | null } {
+  const driftMs = measurement.deltaMs - baseline.deltaMs;
+  const elapsedMs = measurement.deviceTime - baseline.deviceTime;
+
+  // Need at least ~15 minutes elapsed for meaningful rate calculation
+  if (elapsedMs < 15 * 60 * 1000) {
+    return { driftMs, elapsedMs, secondsPerDay: null };
+  }
+
+  const elapsedDays = elapsedMs / MS_PER_DAY;
+  const secondsPerDay = (driftMs / elapsedMs) * MS_PER_DAY / 1000;
+
+  return { driftMs, elapsedMs, secondsPerDay };
+}
+
 export function calculateAccuracy(measurements: Measurement[]): AccuracyStats {
   if (measurements.length < 2) {
     return {
@@ -14,18 +49,46 @@ export function calculateAccuracy(measurements: Measurement[]): AccuracyStats {
     };
   }
 
-  // Sort measurements by reference time
-  const sorted = [...measurements].sort((a, b) => a.referenceTime - b.referenceTime);
+  // Sort measurements by device time
+  const sorted = [...measurements].sort((a, b) => a.deviceTime - b.deviceTime);
 
-  const firstMeasurement = sorted[0];
-  const lastMeasurement = sorted[sorted.length - 1];
+  // Find the most recent baseline
+  const latestBaseline = sorted.filter(m => m.isBaseline).pop();
+  if (!latestBaseline) {
+    return {
+      secondsPerDay: null,
+      trend: 'unknown',
+      confidence: 'low',
+      elapsedDays: 0,
+      totalDriftMs: 0,
+      measurementCount: measurements.length,
+    };
+  }
 
-  // Calculate elapsed time
-  const elapsedMs = lastMeasurement.referenceTime - firstMeasurement.referenceTime;
+  // Get measurements after the latest baseline (including the baseline itself)
+  const measurementsInCurrentPeriod = sorted.filter(
+    m => m.deviceTime >= latestBaseline.deviceTime
+  );
+
+  if (measurementsInCurrentPeriod.length < 2) {
+    return {
+      secondsPerDay: null,
+      trend: 'unknown',
+      confidence: 'low',
+      elapsedDays: 0,
+      totalDriftMs: 0,
+      measurementCount: measurements.length,
+    };
+  }
+
+  const lastMeasurement = measurementsInCurrentPeriod[measurementsInCurrentPeriod.length - 1];
+
+  // Calculate elapsed time from baseline
+  const elapsedMs = lastMeasurement.deviceTime - latestBaseline.deviceTime;
   const elapsedDays = elapsedMs / MS_PER_DAY;
 
-  // Calculate total drift
-  const totalDriftMs = lastMeasurement.offsetMs - firstMeasurement.offsetMs;
+  // Calculate total drift from baseline
+  const totalDriftMs = lastMeasurement.deltaMs - latestBaseline.deltaMs;
 
   // Need meaningful time elapsed
   if (elapsedDays < 0.01) {
@@ -39,9 +102,9 @@ export function calculateAccuracy(measurements: Measurement[]): AccuracyStats {
     };
   }
 
-  // Use linear regression for 3+ measurements
-  const secondsPerDay = measurements.length >= 3
-    ? calculateWithRegression(sorted)
+  // Use linear regression for 3+ measurements in current period
+  const secondsPerDay = measurementsInCurrentPeriod.length >= 3
+    ? calculateWithRegression(measurementsInCurrentPeriod, latestBaseline)
     : (totalDriftMs / elapsedDays) / 1000;
 
   // Determine trend
@@ -54,11 +117,11 @@ export function calculateAccuracy(measurements: Measurement[]): AccuracyStats {
     trend = 'losing';
   }
 
-  // Determine confidence
+  // Determine confidence based on measurements in current period
   let confidence: AccuracyStats['confidence'];
-  if (elapsedDays >= 7 && measurements.length >= 5) {
+  if (elapsedDays >= 7 && measurementsInCurrentPeriod.length >= 5) {
     confidence = 'high';
-  } else if (elapsedDays >= 1 && measurements.length >= 2) {
+  } else if (elapsedDays >= 1 && measurementsInCurrentPeriod.length >= 2) {
     confidence = 'medium';
   } else {
     confidence = 'low';
@@ -74,13 +137,14 @@ export function calculateAccuracy(measurements: Measurement[]): AccuracyStats {
   };
 }
 
-function calculateWithRegression(sorted: Measurement[]): number {
-  const firstTime = sorted[0].referenceTime;
+function calculateWithRegression(sorted: Measurement[], baseline: Measurement): number {
+  const baselineTime = baseline.deviceTime;
+  const baselineDelta = baseline.deltaMs;
 
-  // Convert to (days, seconds offset) points
+  // Convert to (days since baseline, drift in seconds from baseline) points
   const points = sorted.map(m => ({
-    x: (m.referenceTime - firstTime) / MS_PER_DAY,
-    y: m.offsetMs / 1000,
+    x: (m.deviceTime - baselineTime) / MS_PER_DAY,
+    y: (m.deltaMs - baselineDelta) / 1000,
   }));
 
   // Linear regression: y = mx + b

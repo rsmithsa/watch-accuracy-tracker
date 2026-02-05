@@ -22,10 +22,11 @@ export interface BaselinePeriod {
 export interface Measurement {
   id: string;
   baselinePeriodId: string;
-  referenceTime: number;
-  capturedAt: number;
-  offsetMs: number;
+  watchTime: number;      // User-selected time (HH:MM:00) as timestamp
+  deviceTime: number;     // Actual atomic/device time at capture
+  deltaMs: number;        // device_time - watch_time (+ = watch slow, - = watch fast)
   timeSource: TimeSource;
+  isBaseline: boolean;    // true = baseline measurement
   createdAt: number;
 }
 

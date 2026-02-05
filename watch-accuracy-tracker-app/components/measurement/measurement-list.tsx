@@ -11,7 +11,7 @@ export type MeasurementListProps = {
 };
 
 export function MeasurementList({ measurements }: MeasurementListProps) {
-  const borderColor = useThemeColor({}, 'border');
+  const primaryColor = useThemeColor({}, 'buttonPrimary');
 
   if (measurements.length === 0) {
     return (
@@ -25,21 +25,42 @@ export function MeasurementList({ measurements }: MeasurementListProps) {
   }
 
   const renderItem = ({ item, index }: { item: Measurement; index: number }) => {
-    const date = new Date(item.referenceTime);
-    const dateStr = date.toLocaleDateString();
-    const timeStr = formatTimeShort(item.referenceTime);
+    const watchDate = new Date(item.watchTime);
+    const deviceDate = new Date(item.deviceTime);
+    const dateStr = deviceDate.toLocaleDateString();
+    const watchTimeStr = formatTimeShort(item.watchTime);
+    const deviceTimeStr = formatTimeShort(item.deviceTime);
 
     return (
       <Card style={styles.item}>
         <View style={styles.itemHeader}>
-          <ThemedText style={styles.itemNumber}>#{measurements.length - index}</ThemedText>
-          <ThemedText style={styles.itemOffset}>{formatOffset(item.offsetMs)}</ThemedText>
+          <View style={styles.itemHeaderLeft}>
+            <ThemedText style={styles.itemNumber}>#{measurements.length - index}</ThemedText>
+            {item.isBaseline && (
+              <View style={[styles.baselineBadge, { backgroundColor: primaryColor }]}>
+                <ThemedText style={styles.baselineText}>BASELINE</ThemedText>
+              </View>
+            )}
+          </View>
+          <ThemedText style={styles.itemDelta}>{formatOffset(item.deltaMs)}</ThemedText>
         </View>
         <View style={styles.itemDetails}>
-          <ThemedText style={styles.itemDate}>{dateStr} at {timeStr}</ThemedText>
-          <ThemedText style={styles.itemSource}>
-            via {item.timeSource === 'ntp' ? 'NTP' : 'Device'}
-          </ThemedText>
+          <View style={styles.timesRow}>
+            <View style={styles.timeColumn}>
+              <ThemedText style={styles.timeLabel}>Watch</ThemedText>
+              <ThemedText style={styles.timeValue}>{watchTimeStr}</ThemedText>
+            </View>
+            <View style={styles.timeColumn}>
+              <ThemedText style={styles.timeLabel}>Actual</ThemedText>
+              <ThemedText style={styles.timeValue}>{deviceTimeStr}</ThemedText>
+            </View>
+          </View>
+          <View style={styles.metaRow}>
+            <ThemedText style={styles.itemDate}>{dateStr}</ThemedText>
+            <ThemedText style={styles.itemSource}>
+              via {item.timeSource === 'ntp' ? 'NTP' : 'Device'}
+            </ThemedText>
+          </View>
         </View>
       </Card>
     );
@@ -82,24 +103,59 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
+  },
+  itemHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   itemNumber: {
     fontSize: 14,
     opacity: 0.5,
   },
-  itemOffset: {
-    fontSize: 18,
+  baselineBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  baselineText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  itemDelta: {
+    fontSize: 20,
     fontWeight: '600',
   },
   itemDetails: {
+    gap: 8,
+  },
+  timesRow: {
+    flexDirection: 'row',
+    gap: 24,
+  },
+  timeColumn: {
+    alignItems: 'flex-start',
+  },
+  timeLabel: {
+    fontSize: 11,
+    opacity: 0.5,
+    textTransform: 'uppercase',
+  },
+  timeValue: {
+    fontSize: 14,
+    fontVariant: ['tabular-nums'],
+  },
+  metaRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginTop: 4,
   },
   itemDate: {
-    fontSize: 14,
-    opacity: 0.7,
+    fontSize: 13,
+    opacity: 0.6,
   },
   itemSource: {
     fontSize: 12,

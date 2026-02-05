@@ -18,7 +18,7 @@ interface WatchState {
   updateWatch: (id: string, updates: { name?: string; brand?: string; model?: string; movementType?: MovementType }) => Promise<void>;
   deleteWatch: (id: string) => Promise<void>;
   loadMeasurements: (baselinePeriodId: string) => Promise<void>;
-  addMeasurement: (baselinePeriodId: string, referenceTime: number, offsetMs: number, timeSource: 'ntp' | 'device') => Promise<void>;
+  addMeasurement: (baselinePeriodId: string, watchTime: number, deviceTime: number, deltaMs: number, timeSource: 'ntp' | 'device', isBaseline: boolean) => Promise<void>;
   resetBaseline: (watchId: string, notes?: string) => Promise<void>;
   clearError: () => void;
 }
@@ -45,7 +45,7 @@ export const useWatchStore = create<WatchState>((set, get) => ({
             const measurements = await measurementService.getMeasurements(baseline.id);
             measurementCount = measurements.length;
             if (measurements.length > 0) {
-              latestOffset = measurements[measurements.length - 1].offsetMs;
+              latestOffset = measurements[measurements.length - 1].deltaMs;
               const accuracy = calculateAccuracy(measurements);
               accuracyPerDay = accuracy.secondsPerDay;
             }
@@ -85,7 +85,7 @@ export const useWatchStore = create<WatchState>((set, get) => ({
         measurements = await measurementService.getMeasurements(baseline.id);
         measurementCount = measurements.length;
         if (measurements.length > 0) {
-          latestOffset = measurements[measurements.length - 1].offsetMs;
+          latestOffset = measurements[measurements.length - 1].deltaMs;
           const accuracy = calculateAccuracy(measurements);
           accuracyPerDay = accuracy.secondsPerDay;
         }
@@ -156,14 +156,15 @@ export const useWatchStore = create<WatchState>((set, get) => ({
     }
   },
 
-  addMeasurement: async (baselinePeriodId, referenceTime, offsetMs, timeSource) => {
+  addMeasurement: async (baselinePeriodId, watchTime, deviceTime, deltaMs, timeSource, isBaseline) => {
     try {
       await measurementService.createMeasurement({
         baselinePeriodId,
-        referenceTime,
-        capturedAt: Date.now(),
-        offsetMs,
+        watchTime,
+        deviceTime,
+        deltaMs,
         timeSource,
+        isBaseline,
       });
       await get().loadMeasurements(baselinePeriodId);
       // Reload watch to update stats
