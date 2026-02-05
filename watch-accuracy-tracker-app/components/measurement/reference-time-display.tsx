@@ -38,10 +38,10 @@ export function ReferenceTimeDisplay({ time, source }: ReferenceTimeDisplayProps
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
-    paddingVertical: 24,
   },
   time: {
-    fontSize: 48,
+    fontSize: 24,
+    lineHeight: 30,
     fontWeight: '300',
     fontVariant: ['tabular-nums'],
   },

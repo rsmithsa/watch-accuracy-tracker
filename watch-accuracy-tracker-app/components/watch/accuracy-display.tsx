@@ -68,6 +68,7 @@ const styles = StyleSheet.create({
   },
   largeValue: {
     fontSize: 48,
+    lineHeight: 58,
     fontWeight: 'bold',
   },
   largeLabel: {

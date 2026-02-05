@@ -27,6 +27,8 @@ const MAPPING = {
   'gearshape.fill': 'settings',
   'checkmark.square': 'check-box',
   'square': 'check-box-outline-blank',
+  'questionmark.circle': 'help-outline',
+  'xmark.circle': 'cancel',
 } as IconMapping;
 
 /**

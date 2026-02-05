@@ -7,9 +7,10 @@ export type CaptureButtonProps = {
   onCapture: () => void;
   isCapturing?: boolean;
   disabled?: boolean;
+  size?: number;
 };
 
-export function CaptureButton({ onCapture, isCapturing, disabled }: CaptureButtonProps) {
+export function CaptureButton({ onCapture, isCapturing, disabled, size = 150 }: CaptureButtonProps) {
   const primaryColor = useThemeColor({}, 'buttonPrimary');
   const textColor = useThemeColor({}, 'buttonText');
 
@@ -18,6 +19,10 @@ export function CaptureButton({ onCapture, isCapturing, disabled }: CaptureButto
     onCapture();
   };
 
+  const scale = size / 150;
+  const fontSize = Math.round(18 * scale);
+  const hintSize = Math.round(10 * scale);
+
   return (
     <Pressable
       onPress={handlePress}
@@ -25,6 +30,9 @@ export function CaptureButton({ onCapture, isCapturing, disabled }: CaptureButto
       style={({ pressed }) => [
         styles.button,
         {
+          width: size,
+          height: size,
+          borderRadius: size / 2,
           backgroundColor: primaryColor,
           opacity: pressed || disabled || isCapturing ? 0.7 : 1,
           transform: [{ scale: pressed ? 0.95 : 1 }],
@@ -32,10 +40,10 @@ export function CaptureButton({ onCapture, isCapturing, disabled }: CaptureButto
       ]}
     >
       <View style={styles.content}>
-        <ThemedText style={[styles.text, { color: textColor }]}>
+        <ThemedText style={[styles.text, { color: textColor, fontSize }]}>
           {isCapturing ? 'CAPTURING...' : 'CAPTURE'}
         </ThemedText>
-        <ThemedText style={[styles.hint, { color: textColor }]}>
+        <ThemedText style={[styles.hint, { color: textColor, fontSize: hintSize }]}>
           Tap when second hand hits 12
         </ThemedText>
       </View>
@@ -45,27 +53,22 @@ export function CaptureButton({ onCapture, isCapturing, disabled }: CaptureButto
 
 const styles = StyleSheet.create({
   button: {
-    width: 200,
-    height: 200,
-    borderRadius: 100,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    shadowRadius: 6,
+    elevation: 6,
   },
   content: {
     alignItems: 'center',
   },
   text: {
-    fontSize: 24,
     fontWeight: 'bold',
   },
   hint: {
-    fontSize: 12,
-    marginTop: 8,
+    marginTop: 6,
     textAlign: 'center',
     opacity: 0.8,
   },

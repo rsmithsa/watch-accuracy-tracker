@@ -1,6 +1,8 @@
-import { StyleSheet, View, Alert, Pressable } from 'react-native';
-import { useEffect, useState, useCallback } from 'react';
+import { StyleSheet, View, Alert, Pressable, ScrollView, useWindowDimensions } from 'react-native';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useLocalSearchParams, router, Stack } from 'expo-router';
+import { useHeaderHeight } from '@react-navigation/elements';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { Card } from '@/components/ui/card';
@@ -25,9 +27,33 @@ export default function MeasureScreen() {
   const [isBaseline, setIsBaseline] = useState(false);
   const [lastCapture, setLastCapture] = useState<{ deltaMs: number; source: 'ntp' | 'device' } | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
 
   const primaryColor = useThemeColor({}, 'buttonPrimary');
   const iconColor = useThemeColor({}, 'icon');
+
+  const { width, height } = useWindowDimensions();
+  const headerHeight = useHeaderHeight();
+  const insets = useSafeAreaInsets();
+
+  // Calculate available content height (screen minus header and safe areas)
+  const availableHeight = height - headerHeight - insets.bottom;
+
+  const isSmallScreen = availableHeight < 550;
+  const isTinyScreen = availableHeight < 450;
+
+  const responsiveStyles = useMemo(() => {
+    const baseScale = Math.min(width / 375, availableHeight / 550, 1.2);
+    const scale = isTinyScreen ? baseScale * 0.75 : isSmallScreen ? baseScale * 0.85 : baseScale;
+
+    return {
+      captureButtonSize: Math.round(150 * scale),
+      timePickerScale: scale,
+      sectionMargin: Math.round(24 * scale),
+      resultFontSize: Math.round(32 * scale),
+      padding: Math.round(16 * scale),
+    };
+  }, [width, availableHeight, isSmallScreen, isTinyScreen]);
 
   useEffect(() => {
     if (id) {
@@ -103,38 +129,60 @@ export default function MeasureScreen() {
     <ThemedView style={styles.container}>
       <Stack.Screen options={{ title: `Measure - ${selectedWatch.name}` }} />
 
-      <View style={styles.content}>
-        <Card style={styles.instructions}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={[styles.content, { padding: responsiveStyles.padding }]}
+        showsVerticalScrollIndicator={true}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.headerRow}>
           <ThemedText type="defaultSemiBold">
             {isFirstMeasurement ? 'First Measurement (Baseline)' : 'Take Measurement'}
           </ThemedText>
-          <ThemedText style={styles.instructionText}>
-            Set the time your watch will show, then tap CAPTURE when the second hand hits 0.
-          </ThemedText>
-        </Card>
+          <Pressable onPress={() => setShowHelp(!showHelp)} hitSlop={8}>
+            <IconSymbol
+              name={showHelp ? 'xmark.circle' : 'questionmark.circle'}
+              size={22}
+              color={iconColor}
+            />
+          </Pressable>
+        </View>
 
-        <View style={styles.section}>
+        {showHelp && (
+          <Card style={styles.instructions}>
+            <ThemedText style={styles.instructionText}>
+              Set the time your watch will show, then tap CAPTURE when the second hand hits 0.
+            </ThemedText>
+          </Card>
+        )}
+
+        <View style={[styles.section, { marginBottom: responsiveStyles.sectionMargin }]}>
           <ThemedText style={styles.label}>Watch Time (when you will capture)</ThemedText>
           <TimePicker
             hours={hours}
             minutes={minutes}
             onHoursChange={setHours}
             onMinutesChange={setMinutes}
+            scale={responsiveStyles.timePickerScale}
           />
         </View>
 
-        <View style={styles.section}>
+        <View style={[styles.section, { marginBottom: responsiveStyles.sectionMargin }]}>
           <ThemedText style={styles.label}>Current Time ({timeSource === 'ntp' ? 'NTP' : 'Device'})</ThemedText>
           <ReferenceTimeDisplay time={currentTime} source={timeSource} />
         </View>
 
-        <View style={styles.captureArea}>
-          <CaptureButton onCapture={handleCapture} isCapturing={isCapturing} />
+        <View style={[styles.captureArea, { marginBottom: responsiveStyles.sectionMargin }]}>
+          <CaptureButton
+            onCapture={handleCapture}
+            isCapturing={isCapturing}
+            size={responsiveStyles.captureButtonSize}
+          />
         </View>
 
         {!isFirstMeasurement && (
           <Pressable
-            style={styles.checkboxRow}
+            style={[styles.checkboxRow, { marginBottom: responsiveStyles.sectionMargin }]}
             onPress={() => setIsBaseline(!isBaseline)}
           >
             <IconSymbol
@@ -151,7 +199,9 @@ export default function MeasureScreen() {
         {lastCapture && (
           <Card style={styles.result}>
             <ThemedText type="defaultSemiBold">Captured!</ThemedText>
-            <ThemedText style={styles.resultValue}>{formatOffset(lastCapture.deltaMs)}</ThemedText>
+            <ThemedText style={[styles.resultValue, { fontSize: responsiveStyles.resultFontSize }]}>
+              {formatOffset(lastCapture.deltaMs)}
+            </ThemedText>
             <ThemedText style={styles.resultText}>
               {lastCapture.deltaMs > 0 ? 'Watch is slow' : lastCapture.deltaMs < 0 ? 'Watch is fast' : 'Perfect!'} (via {lastCapture.source === 'ntp' ? 'NTP' : 'Device'})
             </ThemedText>
@@ -163,7 +213,7 @@ export default function MeasureScreen() {
         </ThemedText>
 
         <Button title="Done" variant="secondary" onPress={() => router.back()} style={styles.doneButton} />
-      </View>
+      </ScrollView>
     </ThemedView>
   );
 }
@@ -172,20 +222,26 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  content: {
+  scrollView: {
     flex: 1,
-    padding: 16,
+  },
+  content: {
+    paddingBottom: 32,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
   },
   instructions: {
-    marginBottom: 24,
+    marginBottom: 16,
   },
   instructionText: {
-    marginTop: 8,
     lineHeight: 22,
   },
   section: {
     alignItems: 'center',
-    marginBottom: 24,
   },
   label: {
     fontSize: 14,
@@ -194,13 +250,11 @@ const styles = StyleSheet.create({
   },
   captureArea: {
     alignItems: 'center',
-    marginBottom: 24,
   },
   checkboxRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 24,
     gap: 8,
   },
   checkboxLabel: {
@@ -211,7 +265,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   resultValue: {
-    fontSize: 32,
     fontWeight: '600',
     marginTop: 8,
   },
@@ -225,6 +278,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   doneButton: {
-    marginTop: 'auto',
+    marginTop: 24,
   },
 });

@@ -1,18 +1,45 @@
-import { StyleSheet, ScrollView, View, Alert } from 'react-native';
-import { useEffect } from 'react';
+import { StyleSheet, ScrollView, View, Alert, useWindowDimensions, Pressable } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocalSearchParams, router, Stack } from 'expo-router';
+import { useHeaderHeight } from '@react-navigation/elements';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AccuracyDisplay } from '@/components/watch/accuracy-display';
 import { MovementTypeBadge } from '@/components/watch/movement-type-badge';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import { useThemeColor } from '@/hooks/use-theme-color';
 import { useWatchStore } from '@/store';
 import { calculateAccuracy } from '@/services/accuracyService';
 
 export default function WatchDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { selectedWatch, measurements, isLoading, loadWatch, resetBaseline, deleteWatch } = useWatchStore();
+  const { selectedWatch, measurements, isLoading, loadWatch, deleteWatch } = useWatchStore();
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const iconColor = useThemeColor({}, 'icon');
+
+  const { width, height } = useWindowDimensions();
+  const headerHeight = useHeaderHeight();
+  const insets = useSafeAreaInsets();
+
+  const availableHeight = height - headerHeight - insets.bottom;
+  const isSmallScreen = availableHeight < 500;
+
+  const responsiveStyles = useMemo(() => {
+    const baseScale = Math.min(width / 375, availableHeight / 600, 1.2);
+    const scale = isSmallScreen ? baseScale * 0.85 : baseScale;
+
+    return {
+      padding: Math.round(16 * scale),
+      titleSize: Math.round(24 * scale),
+      subtitleSize: Math.round(16 * scale),
+      cardMargin: Math.round(16 * scale),
+      sectionMargin: Math.round(24 * scale),
+      buttonGap: Math.round(12 * scale),
+    };
+  }, [width, availableHeight, isSmallScreen]);
 
   useEffect(() => {
     if (id) {
@@ -43,22 +70,6 @@ export default function WatchDetailScreen() {
     router.push(`/watch/${id}/edit`);
   };
 
-  const handleResetBaseline = () => {
-    Alert.alert(
-      'Reset Baseline',
-      'This will archive current measurements and start a new tracking period. You should sync your watch to the reference time after this.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Reset',
-          onPress: () => {
-            resetBaseline(id!);
-          },
-        },
-      ]
-    );
-  };
-
   const handleDelete = () => {
     Alert.alert(
       'Delete Watch',
@@ -80,18 +91,27 @@ export default function WatchDetailScreen() {
   return (
     <ThemedView style={styles.container}>
       <Stack.Screen options={{ title: selectedWatch.name }} />
-      <ScrollView contentContainerStyle={styles.content}>
-        <Card style={styles.header}>
+      <ScrollView
+        contentContainerStyle={[styles.content, { padding: responsiveStyles.padding }]}
+        showsVerticalScrollIndicator={true}
+      >
+        <Card style={[styles.header, { marginBottom: responsiveStyles.cardMargin }]}>
           <View style={styles.headerTop}>
             <View style={styles.headerInfo}>
-              <ThemedText type="title" style={styles.name}>{selectedWatch.name}</ThemedText>
-              {subtitle && <ThemedText style={styles.subtitle}>{subtitle}</ThemedText>}
+              <ThemedText type="title" style={[styles.name, { fontSize: responsiveStyles.titleSize }]}>
+                {selectedWatch.name}
+              </ThemedText>
+              {subtitle && (
+                <ThemedText style={[styles.subtitle, { fontSize: responsiveStyles.subtitleSize }]}>
+                  {subtitle}
+                </ThemedText>
+              )}
             </View>
             <MovementTypeBadge type={selectedWatch.movementType} />
           </View>
         </Card>
 
-        <Card style={styles.accuracyCard}>
+        <Card style={[styles.accuracyCard, { marginBottom: responsiveStyles.sectionMargin }]}>
           <ThemedText type="subtitle" style={styles.sectionTitle}>Accuracy</ThemedText>
           <AccuracyDisplay stats={stats} size="large" />
           <ThemedText style={styles.measurementInfo}>
@@ -99,31 +119,31 @@ export default function WatchDetailScreen() {
           </ThemedText>
         </Card>
 
-        <View style={styles.actions}>
-          <Button title="Measure Time" onPress={handleMeasure} style={styles.primaryAction} />
-          <View style={styles.secondaryActions}>
+        <View style={[styles.actions, { marginBottom: responsiveStyles.sectionMargin }]}>
+          <Button title="Measure Time" onPress={handleMeasure} style={[styles.primaryAction, { marginBottom: responsiveStyles.buttonGap }]} />
+          <View style={[styles.secondaryActions, { gap: responsiveStyles.buttonGap }]}>
             <Button title="History" variant="secondary" onPress={handleHistory} style={styles.action} />
             <Button title="Edit" variant="secondary" onPress={handleEdit} style={styles.action} />
           </View>
         </View>
 
-        <Card style={styles.advancedCard}>
-          <ThemedText type="defaultSemiBold">Advanced</ThemedText>
-          <Button
-            title="Reset Baseline"
-            variant="secondary"
-            onPress={handleResetBaseline}
-            style={styles.advancedAction}
-          />
-          <ThemedText style={styles.advancedHint}>
-            Reset when you manually adjust your watch time
-          </ThemedText>
-          <Button
-            title="Delete Watch"
-            variant="danger"
-            onPress={handleDelete}
-            style={styles.advancedAction}
-          />
+        <Card style={[styles.advancedCard, { marginBottom: responsiveStyles.sectionMargin }]}>
+          <Pressable onPress={() => setShowAdvanced(!showAdvanced)} style={styles.advancedHeader}>
+            <ThemedText type="defaultSemiBold">Advanced</ThemedText>
+            <IconSymbol
+              name={showAdvanced ? 'chevron.up' : 'chevron.down'}
+              size={20}
+              color={iconColor}
+            />
+          </Pressable>
+          {showAdvanced && (
+            <Button
+              title="Delete Watch"
+              variant="danger"
+              onPress={handleDelete}
+              style={styles.advancedAction}
+            />
+          )}
         </Card>
       </ScrollView>
     </ThemedView>
@@ -135,11 +155,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    padding: 16,
+    paddingBottom: 32,
   },
-  header: {
-    marginBottom: 16,
-  },
+  header: {},
   headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -149,16 +167,12 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 16,
   },
-  name: {
-    fontSize: 24,
-  },
+  name: {},
   subtitle: {
-    fontSize: 16,
     opacity: 0.7,
     marginTop: 4,
   },
   accuracyCard: {
-    marginBottom: 24,
     alignItems: 'center',
   },
   sectionTitle: {
@@ -168,28 +182,21 @@ const styles = StyleSheet.create({
     marginTop: 16,
     opacity: 0.7,
   },
-  actions: {
-    marginBottom: 24,
-  },
-  primaryAction: {
-    marginBottom: 12,
-  },
+  actions: {},
+  primaryAction: {},
   secondaryActions: {
     flexDirection: 'row',
-    gap: 12,
   },
   action: {
     flex: 1,
   },
-  advancedCard: {
-    marginBottom: 24,
+  advancedCard: {},
+  advancedHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   advancedAction: {
     marginTop: 12,
-  },
-  advancedHint: {
-    fontSize: 12,
-    opacity: 0.7,
-    marginTop: 4,
   },
 });
