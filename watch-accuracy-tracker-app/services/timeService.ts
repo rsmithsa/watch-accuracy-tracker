@@ -13,13 +13,6 @@ export async function getReferenceTime(): Promise<TimeResult> {
   };
 }
 
-export function getDeviceTime(): TimeResult {
-  return {
-    timestamp: Date.now(),
-    source: 'device',
-  };
-}
-
 export function formatTime(timestamp: number): string {
   const date = new Date(timestamp);
   const hours = date.getHours().toString().padStart(2, '0');
