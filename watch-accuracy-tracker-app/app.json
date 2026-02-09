@@ -19,6 +19,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
+      "package": "za.co.smitan.watchaccuracytracker",
       "predictiveBackGestureEnabled": false
     },
     "web": {
