@@ -13,7 +13,6 @@ import { TimePicker } from '@/components/measurement/time-picker';
 import { useWatchStore, useTimeStore } from '@/store';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { formatOffset } from '@/services/accuracyService';
 
 export default function MeasureScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -25,7 +24,6 @@ export default function MeasureScreen() {
   const [hours, setHours] = useState(now.getHours());
   const [minutes, setMinutes] = useState((now.getMinutes() + 1) % 60);
   const [isBaseline, setIsBaseline] = useState(false);
-  const [lastCapture, setLastCapture] = useState<{ deltaMs: number; source: 'ntp' | 'device' } | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
 
@@ -50,7 +48,6 @@ export default function MeasureScreen() {
       captureButtonSize: Math.round(150 * scale),
       timePickerScale: scale,
       sectionMargin: Math.round(24 * scale),
-      resultFontSize: Math.round(32 * scale),
       padding: Math.round(16 * scale),
     };
   }, [width, availableHeight, isSmallScreen, isTinyScreen]);
@@ -112,9 +109,8 @@ export default function MeasureScreen() {
       shouldBeBaseline
     );
 
-    setLastCapture({ deltaMs, source });
     setIsCapturing(false);
-    setIsBaseline(false); // Reset checkbox after capture
+    router.back();
   }, [selectedWatch, measurements, addMeasurement, syncTime, hours, minutes, isFirstMeasurement, isBaseline]);
 
   if (!selectedWatch) {
@@ -196,18 +192,6 @@ export default function MeasureScreen() {
           </Pressable>
         )}
 
-        {lastCapture && (
-          <Card style={styles.result}>
-            <ThemedText type="defaultSemiBold">Captured!</ThemedText>
-            <ThemedText style={[styles.resultValue, { fontSize: responsiveStyles.resultFontSize }]}>
-              {formatOffset(lastCapture.deltaMs)}
-            </ThemedText>
-            <ThemedText style={styles.resultText}>
-              {lastCapture.deltaMs > 0 ? 'Watch is slow' : lastCapture.deltaMs < 0 ? 'Watch is fast' : 'Perfect!'} (via {lastCapture.source === 'ntp' ? 'NTP' : 'Device'})
-            </ThemedText>
-          </Card>
-        )}
-
         <ThemedText style={styles.measurementCount}>
           {measurements.length} measurement{measurements.length !== 1 ? 's' : ''} recorded
         </ThemedText>
@@ -259,18 +243,6 @@ const styles = StyleSheet.create({
   },
   checkboxLabel: {
     fontSize: 14,
-  },
-  result: {
-    marginBottom: 24,
-    alignItems: 'center',
-  },
-  resultValue: {
-    fontWeight: '600',
-    marginTop: 8,
-  },
-  resultText: {
-    marginTop: 4,
-    opacity: 0.7,
   },
   measurementCount: {
     textAlign: 'center',
