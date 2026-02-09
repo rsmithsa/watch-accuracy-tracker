@@ -1,5 +1,11 @@
-import NTPClient from 'react-native-ntp-client';
+import { Platform } from 'react-native';
 import { TimeSource } from '@/types/database';
+
+// Only import NTP client on native platforms
+let NTPClient: any = null;
+if (Platform.OS !== 'web') {
+  NTPClient = require('react-native-ntp-client').default;
+}
 
 const NTP_SERVERS = [
   'pool.ntp.org',
@@ -18,6 +24,14 @@ let lastNtpSync: number = 0;
 const NTP_CACHE_DURATION = 60000; // Re-sync every 60 seconds
 
 export async function getReferenceTime(): Promise<TimeResult> {
+  // On web, NTP via UDP isn't available - use device time
+  if (Platform.OS === 'web') {
+    return {
+      timestamp: Date.now(),
+      source: 'device',
+    };
+  }
+
   const now = Date.now();
 
   // Use cached offset if recent

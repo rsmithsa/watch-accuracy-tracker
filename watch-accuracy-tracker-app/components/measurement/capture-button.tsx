@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View, Platform } from 'react-native';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { ThemedText } from '@/components/themed-text';
 import * as Haptics from 'expo-haptics';
@@ -15,7 +15,9 @@ export function CaptureButton({ onCapture, isCapturing, disabled, size = 150 }: 
   const textColor = useThemeColor({}, 'buttonText');
 
   const handlePress = async () => {
-    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    if (Platform.OS !== 'web') {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    }
     onCapture();
   };
 
