@@ -17,6 +17,7 @@ interface WatchState {
   updateWatch: (id: string, updates: { name?: string; brand?: string; model?: string; movementType?: MovementType }) => Promise<void>;
   deleteWatch: (id: string) => Promise<void>;
   addMeasurement: (watchId: string, watchTime: number, deviceTime: number, deltaMs: number, timeSource: 'ntp' | 'device', isBaseline: boolean) => Promise<void>;
+  deleteMeasurement: (measurementId: string) => Promise<void>;
   clearError: () => void;
 }
 
@@ -143,6 +144,19 @@ export const useWatchStore = create<WatchState>((set, get) => ({
       await get().loadWatch(watchId);
     } catch (err) {
       set({ error: err instanceof Error ? err.message : 'Failed to add measurement' });
+    }
+  },
+
+  deleteMeasurement: async (measurementId) => {
+    try {
+      await measurementService.deleteMeasurement(measurementId);
+      // Reload watch to update stats and measurements
+      const watch = get().selectedWatch;
+      if (watch) {
+        await get().loadWatch(watch.id);
+      }
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : 'Failed to delete measurement' });
     }
   },
 

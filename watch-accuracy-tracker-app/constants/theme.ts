@@ -26,6 +26,7 @@ export const Colors = {
     buttonText: '#fff',
     inputBackground: '#f5f5f5',
     inputBorder: '#d1d5db',
+    danger: '#ef4444',
   },
   dark: {
     text: '#ECEDEE',
@@ -44,6 +45,7 @@ export const Colors = {
     buttonText: '#fff',
     inputBackground: '#1e2022',
     inputBorder: '#3d4144',
+    danger: '#ef4444',
   },
 };
 

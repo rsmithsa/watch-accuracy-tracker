@@ -29,6 +29,7 @@ const MAPPING = {
   'square': 'check-box-outline-blank',
   'questionmark.circle': 'help-outline',
   'xmark.circle': 'cancel',
+  'trash': 'delete',
 } as IconMapping;
 
 /**

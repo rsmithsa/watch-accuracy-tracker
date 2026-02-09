@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { useLocalSearchParams, Stack } from 'expo-router';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
@@ -8,7 +8,11 @@ import { useWatchStore } from '@/store';
 
 export default function HistoryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { selectedWatch, measurements, loadWatch } = useWatchStore();
+  const { selectedWatch, measurements, loadWatch, deleteMeasurement } = useWatchStore();
+
+  const handleDelete = useCallback((measurementId: string) => {
+    deleteMeasurement(measurementId);
+  }, [deleteMeasurement]);
 
   useEffect(() => {
     if (id) {
@@ -27,7 +31,7 @@ export default function HistoryScreen() {
   return (
     <ThemedView style={styles.container}>
       <Stack.Screen options={{ title: `History - ${selectedWatch.name}` }} />
-      <MeasurementList measurements={measurements} />
+      <MeasurementList measurements={measurements} onDelete={handleDelete} />
     </ThemedView>
   );
 }

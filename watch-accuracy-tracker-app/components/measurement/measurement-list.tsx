@@ -1,17 +1,41 @@
-import { StyleSheet, View, FlatList } from 'react-native';
+import { StyleSheet, View, FlatList, Pressable, Alert, Platform } from 'react-native';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { ThemedText } from '@/components/themed-text';
 import { Card } from '@/components/ui/card';
+import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Measurement } from '@/types/database';
 import { formatOffset } from '@/services/accuracyService';
 import { formatTimeShort } from '@/services/timeService';
 
 export type MeasurementListProps = {
   measurements: Measurement[];
+  onDelete?: (measurementId: string) => void;
 };
 
-export function MeasurementList({ measurements }: MeasurementListProps) {
+export function MeasurementList({ measurements, onDelete }: MeasurementListProps) {
   const primaryColor = useThemeColor({}, 'buttonPrimary');
+  const dangerColor = useThemeColor({}, 'danger');
+
+  const handleDelete = (item: Measurement) => {
+    if (Platform.OS === 'web') {
+      if (window.confirm('Are you sure you want to delete this measurement?')) {
+        onDelete?.(item.id);
+      }
+    } else {
+      Alert.alert(
+        'Delete Measurement',
+        'Are you sure you want to delete this measurement?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: () => onDelete?.(item.id),
+          },
+        ]
+      );
+    }
+  };
 
   if (measurements.length === 0) {
     return (
@@ -25,7 +49,6 @@ export function MeasurementList({ measurements }: MeasurementListProps) {
   }
 
   const renderItem = ({ item, index }: { item: Measurement; index: number }) => {
-    const watchDate = new Date(item.watchTime);
     const deviceDate = new Date(item.deviceTime);
     const dateStr = deviceDate.toLocaleDateString();
     const watchTimeStr = formatTimeShort(item.watchTime);
@@ -42,7 +65,14 @@ export function MeasurementList({ measurements }: MeasurementListProps) {
               </View>
             )}
           </View>
-          <ThemedText style={styles.itemDelta}>{formatOffset(item.deltaMs)}</ThemedText>
+          <View style={styles.itemHeaderRight}>
+            <ThemedText style={styles.itemDelta}>{formatOffset(item.deltaMs)}</ThemedText>
+            {onDelete && (
+              <Pressable onPress={() => handleDelete(item)} hitSlop={8} style={styles.deleteButton}>
+                <IconSymbol name="trash" size={18} color={dangerColor} />
+              </Pressable>
+            )}
+          </View>
         </View>
         <View style={styles.itemDetails}>
           <View style={styles.timesRow}>
@@ -109,6 +139,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  itemHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  deleteButton: {
+    padding: 4,
   },
   itemNumber: {
     fontSize: 14,
