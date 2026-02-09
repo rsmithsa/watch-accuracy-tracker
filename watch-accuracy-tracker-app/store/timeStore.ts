@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { getReferenceTime, clearNtpCache } from '@/services/timeService';
+import { getReferenceTime } from '@/services/timeService';
 import { TimeSource } from '@/types/database';
 
 interface TimeState {
@@ -11,7 +11,6 @@ interface TimeState {
 
   syncTime: () => Promise<void>;
   startTimeUpdates: () => () => void;
-  clearCache: () => void;
 }
 
 export const useTimeStore = create<TimeState>((set, get) => ({
@@ -52,7 +51,7 @@ export const useTimeStore = create<TimeState>((set, get) => ({
       }));
     }, 100);
 
-    // Re-sync with NTP every 60 seconds
+    // Re-sync periodically to prevent drift
     const syncInterval = setInterval(() => {
       get().syncTime();
     }, 60000);
@@ -62,10 +61,5 @@ export const useTimeStore = create<TimeState>((set, get) => ({
       clearInterval(displayInterval);
       clearInterval(syncInterval);
     };
-  },
-
-  clearCache: () => {
-    clearNtpCache();
-    set({ timeSource: null, lastSync: null });
   },
 }));
