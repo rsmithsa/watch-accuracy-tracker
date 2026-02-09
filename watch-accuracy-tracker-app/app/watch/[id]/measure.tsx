@@ -1,4 +1,4 @@
-import { StyleSheet, View, Alert, Pressable, ScrollView, useWindowDimensions } from 'react-native';
+import { StyleSheet, View, Pressable, ScrollView, useWindowDimensions } from 'react-native';
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useLocalSearchParams, router, Stack } from 'expo-router';
 import { useHeaderHeight } from '@react-navigation/elements';
@@ -63,8 +63,7 @@ export default function MeasureScreen() {
   const isFirstMeasurement = measurements.length === 0;
 
   const handleCapture = useCallback(async () => {
-    if (!selectedWatch?.currentBaselinePeriod) {
-      Alert.alert('Error', 'No active baseline period');
+    if (!selectedWatch) {
       return;
     }
 
@@ -101,7 +100,7 @@ export default function MeasureScreen() {
     const shouldBeBaseline = isFirstMeasurement || isBaseline;
 
     await addMeasurement(
-      selectedWatch.currentBaselinePeriod.id,
+      selectedWatch.id,
       adjustedWatchTime,
       deviceTime,
       deltaMs,
@@ -111,7 +110,7 @@ export default function MeasureScreen() {
 
     setIsCapturing(false);
     router.back();
-  }, [selectedWatch, measurements, addMeasurement, syncTime, hours, minutes, isFirstMeasurement, isBaseline]);
+  }, [selectedWatch, addMeasurement, syncTime, hours, minutes, isFirstMeasurement, isBaseline]);
 
   if (!selectedWatch) {
     return (
