@@ -23,7 +23,8 @@ export function calculateDriftFromBaseline(
   measurement: Measurement,
   baseline: Measurement
 ): { driftMs: number; elapsedMs: number; secondsPerDay: number | null } {
-  const driftMs = measurement.deltaMs - baseline.deltaMs;
+  // Negate so positive = watch gaining time (running fast)
+  const driftMs = -(measurement.deltaMs - baseline.deltaMs);
   const elapsedMs = measurement.deviceTime - baseline.deviceTime;
 
   // Need at least ~15 minutes elapsed for meaningful rate calculation
@@ -31,7 +32,6 @@ export function calculateDriftFromBaseline(
     return { driftMs, elapsedMs, secondsPerDay: null };
   }
 
-  const elapsedDays = elapsedMs / MS_PER_DAY;
   const secondsPerDay = (driftMs / elapsedMs) * MS_PER_DAY / 1000;
 
   return { driftMs, elapsedMs, secondsPerDay };
@@ -88,7 +88,8 @@ export function calculateAccuracy(measurements: Measurement[]): AccuracyStats {
   const elapsedDays = elapsedMs / MS_PER_DAY;
 
   // Calculate total drift from baseline
-  const totalDriftMs = lastMeasurement.deltaMs - latestBaseline.deltaMs;
+  // Negate so positive = watch gaining time (running fast)
+  const totalDriftMs = -(lastMeasurement.deltaMs - latestBaseline.deltaMs);
 
   // Need meaningful time elapsed
   if (elapsedDays < 0.01) {
@@ -142,9 +143,10 @@ function calculateWithRegression(sorted: Measurement[], baseline: Measurement): 
   const baselineDelta = baseline.deltaMs;
 
   // Convert to (days since baseline, drift in seconds from baseline) points
+  // Negate y so positive = watch gaining time (running fast)
   const points = sorted.map(m => ({
     x: (m.deviceTime - baselineTime) / MS_PER_DAY,
-    y: (m.deltaMs - baselineDelta) / 1000,
+    y: -(m.deltaMs - baselineDelta) / 1000,
   }));
 
   // Linear regression: y = mx + b

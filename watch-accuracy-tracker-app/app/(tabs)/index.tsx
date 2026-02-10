@@ -1,6 +1,7 @@
 import { StyleSheet, View, FlatList, Pressable } from 'react-native';
-import { useEffect } from 'react';
+import { useCallback } from 'react';
 import { router } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { ThemedView } from '@/components/themed-view';
 import { ThemedText } from '@/components/themed-text';
 import { WatchCard } from '@/components/watch/watch-card';
@@ -12,9 +13,11 @@ export default function WatchListScreen() {
   const { watches, isLoading, loadWatches } = useWatchStore();
   const primaryColor = useThemeColor({}, 'buttonPrimary');
 
-  useEffect(() => {
-    loadWatches();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      loadWatches();
+    }, [loadWatches])
+  );
 
   const handleAddWatch = () => {
     router.push('/watch/new');
