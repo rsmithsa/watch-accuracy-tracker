@@ -82,3 +82,11 @@ async function runMigrations(database: SQLite.SQLiteDatabase): Promise<void> {
 export function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 }
+
+export async function clearAllData(): Promise<void> {
+  const database = await getDatabase();
+  await database.execAsync(`
+    DELETE FROM measurements;
+    DELETE FROM watches;
+  `);
+}

@@ -73,3 +73,56 @@ export async function deleteMeasurement(id: string): Promise<void> {
   const db = await getDatabase();
   await db.runAsync('DELETE FROM measurements WHERE id = ?', [id]);
 }
+
+interface CreateMeasurementWithIdInput {
+  watchId: string;
+  watchTime: number;
+  deviceTime: number;
+  deltaMs: number;
+  timeSource: TimeSource;
+  isBaseline: boolean;
+}
+
+export async function createMeasurementWithId(
+  id: string,
+  input: CreateMeasurementWithIdInput,
+  createdAt: number
+): Promise<Measurement> {
+  const db = await getDatabase();
+  const measurement: Measurement = {
+    id,
+    watchId: input.watchId,
+    watchTime: input.watchTime,
+    deviceTime: input.deviceTime,
+    deltaMs: input.deltaMs,
+    timeSource: input.timeSource,
+    isBaseline: input.isBaseline,
+    createdAt,
+  };
+
+  await db.runAsync(
+    `INSERT INTO measurements (id, watch_id, watch_time, device_time, delta_ms, time_source, is_baseline, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      measurement.id,
+      measurement.watchId,
+      measurement.watchTime,
+      measurement.deviceTime,
+      measurement.deltaMs,
+      measurement.timeSource,
+      measurement.isBaseline ? 1 : 0,
+      measurement.createdAt,
+    ]
+  );
+
+  return measurement;
+}
+
+export async function measurementExists(id: string): Promise<boolean> {
+  const db = await getDatabase();
+  const row = await db.getFirstAsync<{ count: number }>(
+    'SELECT COUNT(*) as count FROM measurements WHERE id = ?',
+    [id]
+  );
+  return (row?.count ?? 0) > 0;
+}

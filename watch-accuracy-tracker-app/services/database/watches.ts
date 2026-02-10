@@ -116,3 +116,45 @@ export async function deleteWatch(id: string): Promise<void> {
   const db = await getDatabase();
   await db.runAsync('DELETE FROM watches WHERE id = ?', [id]);
 }
+
+interface CreateWatchWithIdInput {
+  name: string;
+  brand?: string | null;
+  model?: string | null;
+  movementType: MovementType;
+}
+
+export async function createWatchWithId(
+  id: string,
+  input: CreateWatchWithIdInput,
+  createdAt: number,
+  updatedAt: number
+): Promise<Watch> {
+  const db = await getDatabase();
+  const watch: Watch = {
+    id,
+    name: input.name,
+    brand: input.brand ?? null,
+    model: input.model ?? null,
+    movementType: input.movementType,
+    createdAt,
+    updatedAt,
+  };
+
+  await db.runAsync(
+    `INSERT INTO watches (id, name, brand, model, movement_type, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [watch.id, watch.name, watch.brand, watch.model, watch.movementType, watch.createdAt, watch.updatedAt]
+  );
+
+  return watch;
+}
+
+export async function watchExists(id: string): Promise<boolean> {
+  const db = await getDatabase();
+  const row = await db.getFirstAsync<{ count: number }>(
+    'SELECT COUNT(*) as count FROM watches WHERE id = ?',
+    [id]
+  );
+  return (row?.count ?? 0) > 0;
+}
