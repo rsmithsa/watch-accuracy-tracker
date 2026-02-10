@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "watch-accuracy-tracker-app",
+    "name": "Watch Accuracy Tracker",
     "slug": "watch-accuracy-tracker",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "watchaccuracytrackerapp",
+    "scheme": "watchaccuracytracker",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
