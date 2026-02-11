@@ -236,23 +236,20 @@ export async function importData(jsonString: string, mode: ImportMode): Promise<
 
     if (exists && mode === 'merge') {
       result.watchesSkipped++;
-      // Skip measurements for existing watches in merge mode
-      result.measurementsSkipped += watch.measurements.length;
-      continue;
+    } else {
+      await createWatchWithId(
+        watch.id,
+        {
+          name: watch.name,
+          brand: watch.brand,
+          model: watch.model,
+          movementType: watch.movementType,
+        },
+        watch.createdAt,
+        watch.updatedAt
+      );
+      result.watchesImported++;
     }
-
-    await createWatchWithId(
-      watch.id,
-      {
-        name: watch.name,
-        brand: watch.brand,
-        model: watch.model,
-        movementType: watch.movementType,
-      },
-      watch.createdAt,
-      watch.updatedAt
-    );
-    result.watchesImported++;
 
     for (const measurement of watch.measurements) {
       const measurementExistsCheck = mode === 'merge' ? await measurementExists(measurement.id) : false;
