@@ -2,7 +2,8 @@ import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
 import { ChartDataPoint, getChartData } from '@/services/accuracyService';
 import { Measurement } from '@/types/database';
-import { StyleSheet, View, useWindowDimensions } from 'react-native';
+import { useState } from 'react';
+import { LayoutChangeEvent, StyleSheet, View } from 'react-native';
 import { LineChart } from 'react-native-gifted-charts';
 
 export type AccuracyChartProps = {
@@ -23,17 +24,21 @@ function interpolateY(points: ChartDataPoint[], x: number): number {
 }
 
 export function AccuracyChart({ measurements }: AccuracyChartProps) {
-  const { width } = useWindowDimensions();
+  const [containerWidth, setContainerWidth] = useState(0);
   const tintColor = useThemeColor({}, 'tint');
   const textColor = useThemeColor({}, 'text');
   const backgroundColor = useThemeColor({}, 'card');
 
   const chartData = getChartData(measurements);
 
+  const onLayout = (e: LayoutChangeEvent) => {
+    setContainerWidth(e.nativeEvent.layout.width);
+  };
+
   // Need at least 2 points to show chart
   if (chartData.points.length < 2 || !chartData.regressionLine) {
     return (
-      <View style={styles.emptyContainer}>
+      <View style={styles.emptyContainer} onLayout={onLayout}>
         <ThemedText style={styles.emptyText}>
           Add more measurements to see drift chart
         </ThemedText>
@@ -41,7 +46,12 @@ export function AccuracyChart({ measurements }: AccuracyChartProps) {
     );
   }
 
-  const chartWidth = width - 64;
+  // Wait for layout measurement before rendering chart
+  if (containerWidth === 0) {
+    return <View style={styles.container} onLayout={onLayout} />;
+  }
+
+  const chartWidth = containerWidth;
   const points = chartData.points;
   const { start, end } = chartData.regressionLine;
 
@@ -81,7 +91,23 @@ export function AccuracyChart({ measurements }: AccuracyChartProps) {
   );
   const emptyDot = () => <View style={{ width: 0, height: 0 }} />;
 
+  // Uniform spacing to fit all slots within chart width
+  // width prop = data area only (y-axis labels are rendered outside it)
+  const yAxisLabelWidth = 50;
+  const initialSpacing = 10;
+  const rightPadding = 10;
+  const dataAreaWidth = chartWidth - yAxisLabelWidth;
+  const spacing = Math.floor(
+    (dataAreaWidth - initialSpacing - rightPadding) / Math.max(numSlots - 1, 1),
+  );
+
   // Build gridded data arrays
+  // Thin out labels so they don't overlap — only show a label when there's
+  // enough pixel distance from the previous one.
+  const minLabelPx = 32;
+  const slotsPerLabel = Math.max(1, Math.ceil(minLabelPx / Math.max(spacing, 1)));
+  let lastLabelSlot = -slotsPerLabel; // ensures first measurement gets a label
+
   const measurementData: any[] = [];
   const regressionData: any[] = [];
 
@@ -89,9 +115,13 @@ export function AccuracyChart({ measurements }: AccuracyChartProps) {
     const x = xMin + s * gridStep;
     const measIdx = slotToMeas.get(s);
 
+    const showLabel =
+      measIdx != null && s - lastLabelSlot >= slotsPerLabel;
+    if (showLabel) lastLabelSlot = s;
+
     measurementData.push({
       value: measIdx != null ? points[measIdx].y : interpolateY(points, x),
-      label: measIdx != null ? points[measIdx].x.toFixed(1) : '',
+      label: showLabel ? points[measIdx!].x.toFixed(1) : '',
       day: measIdx != null ? points[measIdx].x : x,
       isMeasurement: measIdx != null,
       customDataPoint: measIdx != null ? measurementDot : emptyDot,
@@ -114,16 +144,8 @@ export function AccuracyChart({ measurements }: AccuracyChartProps) {
   const yAxisOffset = Math.floor((yDataMin - yPad) * 10) / 10;
   const maxValue = Math.ceil((yDataMax + yPad - yAxisOffset) * 10) / 10;
 
-  // Uniform spacing to fit all slots within chart width
-  const yAxisLabelWidth = 50;
-  const edgeSpacing = 10;
-  const dataAreaWidth = chartWidth - yAxisLabelWidth;
-  const spacing = Math.floor(
-    (dataAreaWidth - edgeSpacing * 2) / Math.max(numSlots - 1, 1),
-  );
-
   return (
-    <View style={styles.container}>
+    <View style={styles.container} onLayout={onLayout}>
       <LineChart
         dataSet={[
           {
@@ -143,11 +165,13 @@ export function AccuracyChart({ measurements }: AccuracyChartProps) {
           },
         ]}
         height={180}
+        labelsExtraHeight={6}
         width={dataAreaWidth}
         spacing={spacing}
-        initialSpacing={edgeSpacing}
-        endSpacing={edgeSpacing}
+        initialSpacing={initialSpacing}
+        endSpacing={0}
         disableScroll
+        yAxisLabelWidth={yAxisLabelWidth}
         noOfSections={4}
         yAxisOffset={yAxisOffset}
         maxValue={maxValue}
@@ -171,7 +195,7 @@ export function AccuracyChart({ measurements }: AccuracyChartProps) {
           pointerVanishDelay: 5000,
           pointerLabelComponent: (items: any[]) => {
             const item = items[0];
-            if (!item) return null;
+            if (!item || !item.isMeasurement) return null;
             const value = (item.value ?? 0) + yAxisOffset;
             const day = item.day ?? 0;
             return (
@@ -182,7 +206,7 @@ export function AccuracyChart({ measurements }: AccuracyChartProps) {
                 ]}
               >
                 <ThemedText style={styles.tooltipText}>
-                  Day {typeof day === 'number' ? day.toFixed(2) : day}
+                  Baseline +{typeof day === 'number' ? day.toFixed(2) : day} days
                 </ThemedText>
                 <ThemedText style={[styles.tooltipText, styles.tooltipValue]}>
                   {value >= 0 ? '+' : ''}
@@ -203,6 +227,8 @@ export function AccuracyChart({ measurements }: AccuracyChartProps) {
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
+    overflow: 'hidden',
+    width: '100%',
   },
   axisLabels: {
     alignItems: 'center',
