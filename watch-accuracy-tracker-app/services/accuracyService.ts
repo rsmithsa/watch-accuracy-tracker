@@ -1,4 +1,4 @@
-import { Measurement, AccuracyStats } from '@/types/database';
+import { AccuracyStats, Measurement } from '@/types/database';
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
@@ -189,4 +189,64 @@ export function getAccuracyColor(secondsPerDay: number | null): 'good' | 'fair' 
   if (abs <= 5) return 'good';
   if (abs <= 15) return 'fair';
   return 'poor';
+}
+
+export interface ChartDataPoint {
+  x: number; // days since baseline
+  y: number; // drift in seconds
+}
+
+export interface ChartData {
+  points: ChartDataPoint[];
+  regressionLine: { start: ChartDataPoint; end: ChartDataPoint } | null;
+  baseline: Measurement | null;
+}
+
+export function getChartData(measurements: Measurement[]): ChartData {
+  if (measurements.length < 2) {
+    return { points: [], regressionLine: null, baseline: null };
+  }
+
+  const accuracy = calculateAccuracy(measurements);
+
+  const sorted = [...measurements].sort((a, b) => a.deviceTime - b.deviceTime);
+
+  // Find the most recent baseline
+  const latestBaseline = sorted.filter(m => m.isBaseline).pop();
+  if (!latestBaseline) {
+    return { points: [], regressionLine: null, baseline: null };
+  }
+
+  // Get measurements in current period (after baseline, including the baseline itself)
+  const measurementsInCurrentPeriod = sorted.filter(
+    m => m.deviceTime > latestBaseline.deviceTime
+  );
+
+  if (measurementsInCurrentPeriod.length < 2) {
+    return { points: [], regressionLine: null, baseline: latestBaseline };
+  }
+
+  const baselineTime = latestBaseline.deviceTime;
+  const baselineDelta = latestBaseline.deltaMs;
+
+  // Convert to (days since baseline, drift in seconds from baseline)
+  // Negate y so positive = watch gaining time (running fast)
+  const points: ChartDataPoint[] = measurementsInCurrentPeriod.map(m => ({
+    x: (m.deviceTime - baselineTime) / MS_PER_DAY,
+    y: ((-(m.deltaMs - baselineDelta) / 1000.0) / ((m.deviceTime - baselineTime) / MS_PER_DAY)),
+  }));
+
+  // Calculate regression line if 2+ points
+  let regressionLine: ChartData['regressionLine'] = null;
+  if (points.length >= 2) {
+    const minX = Math.min(...points.map(p => p.x));
+    const maxX = Math.max(...points.map(p => p.x));
+
+    regressionLine = {
+      start: { x: minX, y: accuracy.secondsPerDay || 0 },
+      end: { x: maxX, y: accuracy.secondsPerDay || 0 },
+    };
+  }
+
+  return { points, regressionLine, baseline: latestBaseline };
 }

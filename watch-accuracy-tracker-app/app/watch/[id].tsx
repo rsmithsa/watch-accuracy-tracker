@@ -8,6 +8,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AccuracyDisplay } from '@/components/watch/accuracy-display';
+import { AccuracyChart } from '@/components/watch/accuracy-chart';
 import { MovementTypeBadge } from '@/components/watch/movement-type-badge';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useThemeColor } from '@/hooks/use-theme-color';
@@ -111,13 +112,20 @@ export default function WatchDetailScreen() {
           </View>
         </Card>
 
-        <Card style={[styles.accuracyCard, { marginBottom: responsiveStyles.sectionMargin }]}>
+        <Card style={[styles.accuracyCard, { marginBottom: responsiveStyles.cardMargin }]}>
           <ThemedText type="subtitle" style={styles.sectionTitle}>Accuracy</ThemedText>
           <AccuracyDisplay stats={stats} size="large" />
           <ThemedText style={styles.measurementInfo}>
             {measurements.length} measurement{measurements.length !== 1 ? 's' : ''} in current period
           </ThemedText>
         </Card>
+
+        {measurements.length >= 2 && (
+          <Card style={[styles.chartCard, { marginBottom: responsiveStyles.sectionMargin }]}>
+            <ThemedText type="subtitle" style={styles.sectionTitle}>Drift Over Time</ThemedText>
+            <AccuracyChart measurements={measurements} />
+          </Card>
+        )}
 
         <View style={[styles.actions, { marginBottom: responsiveStyles.sectionMargin }]}>
           <Button title="Measure Time" onPress={handleMeasure} style={[styles.primaryAction, { marginBottom: responsiveStyles.buttonGap }]} />
@@ -175,6 +183,7 @@ const styles = StyleSheet.create({
   accuracyCard: {
     alignItems: 'center',
   },
+  chartCard: {},
   sectionTitle: {
     marginBottom: 8,
   },
