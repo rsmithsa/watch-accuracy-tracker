@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import { File, Paths } from 'expo-file-system';
+import * as DocumentPicker from 'expo-document-picker';
 import * as Sharing from 'expo-sharing';
 
 export async function shareJsonFile(content: string, filename: string): Promise<void> {
@@ -64,21 +65,24 @@ export async function pickAndReadJsonFile(): Promise<string | null> {
       input.click();
     });
   } else {
-    // Mobile: Use File.pickFileAsync
-    const result = await File.pickFileAsync(undefined, 'application/json');
+    // Mobile: Use DocumentPicker with multiple MIME types.
+    // Cloud providers like Dropbox may classify .json files as
+    // application/octet-stream or text/plain instead of application/json,
+    // so we accept all three to ensure they appear in the picker.
+    // copyToCacheDirectory ensures files from cloud providers are
+    // downloaded locally before reading.
+    const result = await DocumentPicker.getDocumentAsync({
+      type: ['application/json', 'application/octet-stream', 'text/plain'],
+      copyToCacheDirectory: true,
+    });
 
-    if (!result) {
+    if (result.canceled || !result.assets?.[0]) {
       return null;
     }
 
-    // pickFileAsync can return a File or File[] depending on multi-select
-    const pickedFile = Array.isArray(result) ? result[0] : result;
-
-    if (!pickedFile) {
-      return null;
-    }
-
-    const content = await pickedFile.text();
+    const asset = result.assets[0];
+    const file = new File(asset.uri);
+    const content = await file.text();
     return content;
   }
 }
