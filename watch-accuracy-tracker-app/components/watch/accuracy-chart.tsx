@@ -1,6 +1,6 @@
 import { ThemedText } from '@/components/themed-text';
 import { useThemeColor } from '@/hooks/use-theme-color';
-import { getChartData } from '@/services/accuracyService';
+import { ChartDataPoint, getChartData } from '@/services/accuracyService';
 import { Measurement } from '@/types/database';
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
 import { LineChart } from 'react-native-gifted-charts';
@@ -8,6 +8,19 @@ import { LineChart } from 'react-native-gifted-charts';
 export type AccuracyChartProps = {
   measurements: Measurement[];
 };
+
+/** Linearly interpolate y at a given x between the surrounding data points. */
+function interpolateY(points: ChartDataPoint[], x: number): number {
+  if (x <= points[0].x) return points[0].y;
+  if (x >= points[points.length - 1].x) return points[points.length - 1].y;
+  for (let i = 0; i < points.length - 1; i++) {
+    if (x >= points[i].x && x <= points[i + 1].x) {
+      const t = (x - points[i].x) / (points[i + 1].x - points[i].x);
+      return points[i].y + t * (points[i + 1].y - points[i].y);
+    }
+  }
+  return points[0].y;
+}
 
 export function AccuracyChart({ measurements }: AccuracyChartProps) {
   const { width } = useWindowDimensions();
@@ -37,36 +50,76 @@ export function AccuracyChart({ measurements }: AccuracyChartProps) {
     end.x - start.x !== 0 ? (end.y - start.y) / (end.x - start.x) : 0;
   const intercept = start.y - slope * start.x;
 
-  // Build data arrays for gifted-charts (raw values, library handles yAxisOffset)
-  const measurementData = points.map((p, i) => ({
-    value: p.y,
-    label: i === 0 || i === points.length - 1 ? p.x.toFixed(1) : '',
-    day: p.x,
-  }));
+  // Create uniform time grid — each slot represents an equal time interval
+  const xMin = points[0].x;
+  const xMax = points[points.length - 1].x;
+  const totalXRange = xMax - xMin || 1;
+  const numSlots = Math.min(Math.max(points.length * 3, 10), 25);
+  const gridStep = totalXRange / Math.max(numSlots - 1, 1);
 
-  const regressionData = points.map(p => ({
-    value: slope * p.x + intercept,
-  }));
+  // Map each measurement to its nearest grid slot (avoid collisions)
+  const slotToMeas = new Map<number, number>();
+  const usedSlots = new Set<number>();
+  points.forEach((p, i) => {
+    let slot = Math.round((p.x - xMin) / gridStep);
+    slot = Math.max(0, Math.min(slot, numSlots - 1));
+    while (usedSlots.has(slot) && slot < numSlots - 1) slot++;
+    slotToMeas.set(slot, i);
+    usedSlots.add(slot);
+  });
+
+  // Custom data point renderers — dots only at real measurements
+  const measurementDot = () => (
+    <View
+      style={{
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        backgroundColor: tintColor,
+      }}
+    />
+  );
+  const emptyDot = () => <View style={{ width: 0, height: 0 }} />;
+
+  // Build gridded data arrays
+  const measurementData: any[] = [];
+  const regressionData: any[] = [];
+
+  for (let s = 0; s < numSlots; s++) {
+    const x = xMin + s * gridStep;
+    const measIdx = slotToMeas.get(s);
+
+    measurementData.push({
+      value: measIdx != null ? points[measIdx].y : interpolateY(points, x),
+      label: measIdx != null ? points[measIdx].x.toFixed(1) : '',
+      day: measIdx != null ? points[measIdx].x : x,
+      isMeasurement: measIdx != null,
+      customDataPoint: measIdx != null ? measurementDot : emptyDot,
+    });
+
+    regressionData.push({
+      value: slope * x + intercept,
+    });
+  }
 
   // Y-axis scaling — offset so axis doesn't start at 0
   const allValues = [
-    ...points.map(p => p.y),
-    ...points.map(p => slope * p.x + intercept),
+    ...measurementData.map((d: any) => d.value),
+    ...regressionData.map((d: any) => d.value),
   ];
   const yDataMin = Math.min(...allValues);
   const yDataMax = Math.max(...allValues);
   const yRange = yDataMax - yDataMin || 1;
   const yPad = yRange * 0.15;
   const yAxisOffset = Math.floor((yDataMin - yPad) * 10) / 10;
-  const maxValue = Math.ceil((yDataMax + yPad) * 10) / 10;
+  const maxValue = Math.ceil((yDataMax + yPad - yAxisOffset) * 10) / 10;
 
-  // Spacing to fit all points within chart width
+  // Uniform spacing to fit all slots within chart width
   const yAxisLabelWidth = 50;
-  const edgeSpacing = 15;
-  const availableWidth = chartWidth - yAxisLabelWidth - edgeSpacing * 2;
-  const spacing = Math.max(
-    Math.floor(availableWidth / Math.max(points.length - 1, 1)),
-    20,
+  const edgeSpacing = 10;
+  const dataAreaWidth = chartWidth - yAxisLabelWidth;
+  const spacing = Math.floor(
+    (dataAreaWidth - edgeSpacing * 2) / Math.max(numSlots - 1, 1),
   );
 
   return (
@@ -90,6 +143,7 @@ export function AccuracyChart({ measurements }: AccuracyChartProps) {
           },
         ]}
         height={180}
+        width={dataAreaWidth}
         spacing={spacing}
         initialSpacing={edgeSpacing}
         endSpacing={edgeSpacing}
@@ -118,7 +172,7 @@ export function AccuracyChart({ measurements }: AccuracyChartProps) {
           pointerLabelComponent: (items: any[]) => {
             const item = items[0];
             if (!item) return null;
-            const value = item.value ?? 0;
+            const value = (item.value ?? 0) + yAxisOffset;
             const day = item.day ?? 0;
             return (
               <View
